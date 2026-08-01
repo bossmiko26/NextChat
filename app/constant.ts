@@ -459,6 +459,16 @@ export const KnowledgeCutOffDate: Record<string, string> = {
   "gemini-pro-vision": "2023-12",
   "deepseek-chat": "2024-07",
   "deepseek-coder": "2024-07",
+  "claude-sonnet-4-20250514": "2025-03",
+  "claude-sonnet-4-latest": "2025-03",
+  "claude-opus-4-20250514": "2025-03",
+  "claude-opus-4-latest": "2025-03",
+  "claude-haiku-4-5-20251001": "2025-07",
+  "claude-haiku-4-5-latest": "2025-07",
+  "claude-haiku-5": "2025-03",
+  "claude-sonnet-5": "2025-03",
+  "claude-opus-5": "2025-03",
+  "claude-fable-5": "2025-03",
 };
 
 export const DEFAULT_TTS_ENGINE = "OpenAI-TTS";
