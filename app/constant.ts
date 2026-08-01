@@ -172,7 +172,7 @@ export const Anthropic = {
   ChatPath: "v1/messages",
   ChatPath1: "v1/complete",
   ExampleEndpoint: "https://api.anthropic.com",
-  Vision: "2023-06-01",
+  Version: "2023-06-01",
 };
 
 export const OpenaiPath = {
@@ -459,6 +459,16 @@ export const KnowledgeCutOffDate: Record<string, string> = {
   "gemini-pro-vision": "2023-12",
   "deepseek-chat": "2024-07",
   "deepseek-coder": "2024-07",
+  "claude-sonnet-4-20250514": "2025-03",
+  "claude-sonnet-4-latest": "2025-03",
+  "claude-opus-4-20250514": "2025-03",
+  "claude-opus-4-latest": "2025-03",
+  "claude-haiku-4-5-20251001": "2025-07",
+  "claude-haiku-4-5-latest": "2025-07",
+  "claude-haiku-5": "2025-03",
+  "claude-sonnet-5": "2025-03",
+  "claude-opus-5": "2025-03",
+  "claude-fable-5": "2025-03",
 };
 
 export const DEFAULT_TTS_ENGINE = "OpenAI-TTS";
@@ -479,7 +489,7 @@ export const VISION_MODEL_REGEXES = [
   /vision/,
   /gpt-4o/,
   /gpt-4\.1/,
-  /claude.*[34]/,
+  /claude.*[3-9]/,
   /gemini-1\.5/,
   /gemini-exp/,
   /gemini-2\.[05]/,
@@ -496,7 +506,10 @@ export const VISION_MODEL_REGEXES = [
   /gpt-5/
 ];
 
-export const EXCLUDE_VISION_MODEL_REGEXES = [/claude-3-5-haiku-20241022/];
+export const EXCLUDE_VISION_MODEL_REGEXES = [
+  /claude-3-5-haiku-20241022/,
+  /claude-haiku-4-5/,
+];
 
 const openaiModels = [
   // As of July 2024, gpt-4o-mini should be used in place of gpt-3.5-turbo,
@@ -580,7 +593,15 @@ const anthropicModels = [
   "claude-3-7-sonnet-20250219",
   "claude-3-7-sonnet-latest",
   "claude-sonnet-4-20250514",
+  "claude-sonnet-4-latest",
   "claude-opus-4-20250514",
+  "claude-opus-4-latest",
+  "claude-haiku-4-5-20251001",
+  "claude-haiku-4-5-latest",
+  "claude-haiku-5",
+  "claude-sonnet-5",
+  "claude-opus-5",
+  "claude-fable-5",
 ];
 
 const baiduModels = [
@@ -738,7 +759,15 @@ const ai302Models = [
   "llama-4-maverick",
   "gemini-2.5-flash",
   "claude-sonnet-4-20250514",
+  "claude-sonnet-4-latest",
   "claude-opus-4-20250514",
+  "claude-opus-4-latest",
+  "claude-haiku-4-5-20251001",
+  "claude-haiku-4-5-latest",
+  "claude-haiku-5",
+  "claude-sonnet-5",
+  "claude-opus-5",
+  "claude-fable-5",
   "gemini-2.5-pro",
 ];
 
