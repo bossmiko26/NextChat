@@ -958,7 +958,7 @@ export function Settings() {
           aria-label={Locale.Settings.Access.Anthropic.ApiVerion.Title}
           type="text"
           value={accessStore.anthropicApiVersion}
-          placeholder={Anthropic.Vision}
+          placeholder={Anthropic.Version}
           onChange={(e) =>
             accessStore.update(
               (access) => (access.anthropicApiVersion = e.currentTarget.value),

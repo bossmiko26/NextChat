@@ -102,7 +102,7 @@ async function request(req: NextRequest) {
       "anthropic-version":
         req.headers.get("anthropic-version") ||
         serverConfig.anthropicApiVersion ||
-        Anthropic.Vision,
+        Anthropic.Version,
     },
     method: req.method,
     body: req.body,
