@@ -12,7 +12,7 @@ import { auth } from "./auth";
 import { isModelNotavailableInServer } from "@/app/utils/model";
 import { cloudflareAIGatewayUrl } from "@/app/utils/cloudflare";
 
-const ALLOWD_PATH = new Set([Anthropic.ChatPath, Anthropic.ChatPath1]);
+const ALLOWED_PATH = new Set([Anthropic.ChatPath, Anthropic.ChatPath1]);
 
 export async function handle(
   req: NextRequest,
@@ -26,7 +26,7 @@ export async function handle(
 
   const subpath = params.path.join("/");
 
-  if (!ALLOWD_PATH.has(subpath)) {
+  if (!ALLOWED_PATH.has(subpath)) {
     console.log("[Anthropic Route] forbidden path ", subpath);
     return NextResponse.json(
       {
@@ -51,7 +51,7 @@ export async function handle(
     return response;
   } catch (e) {
     console.error("[Anthropic] ", e);
-    return NextResponse.json(prettyObject(e));
+    return NextResponse.json(prettyObject(e), { status: 500 });
   }
 }
 
@@ -93,19 +93,27 @@ async function request(req: NextRequest) {
   // try rebuild url, when using cloudflare ai gateway in server
   const fetchUrl = cloudflareAIGatewayUrl(`${baseUrl}${path}`);
 
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Cache-Control": "no-store",
+    [authHeaderName]: authValue,
+    "anthropic-version":
+      req.headers.get("anthropic-version") ||
+      serverConfig.anthropicApiVersion ||
+      Anthropic.Version,
+  };
+
+  const betaHeader = req.headers.get("anthropic-beta");
+  if (betaHeader) headers["anthropic-beta"] = betaHeader;
+
+  // Always read the body as text so we have a stable string for both
+  // model filtering and the upstream fetch (avoids passing a consumed ReadableStream).
+  const bodyText = await req.text();
+
   const fetchOptions: RequestInit = {
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-      "anthropic-dangerous-direct-browser-access": "true",
-      [authHeaderName]: authValue,
-      "anthropic-version":
-        req.headers.get("anthropic-version") ||
-        serverConfig.anthropicApiVersion ||
-        Anthropic.Version,
-    },
+    headers,
     method: req.method,
-    body: req.body,
+    body: bodyText,
     redirect: "manual",
     // @ts-ignore
     duplex: "half",
@@ -113,12 +121,9 @@ async function request(req: NextRequest) {
   };
 
   // #1815 try to refuse some request to some models
-  if (serverConfig.customModels && req.body) {
+  if (serverConfig.customModels && bodyText) {
     try {
-      const clonedBody = await req.text();
-      fetchOptions.body = clonedBody;
-
-      const jsonBody = JSON.parse(clonedBody) as { model?: string };
+      const jsonBody = JSON.parse(bodyText) as { model?: string };
 
       // not undefined and is false
       if (
