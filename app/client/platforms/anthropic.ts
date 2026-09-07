@@ -280,8 +280,10 @@ export class ClaudeApi implements LLMApi {
             chunkJson?.delta?.type == "input_json_delta" &&
             chunkJson?.delta?.partial_json
           ) {
-            runTools[index]["function"]["arguments"] +=
-              chunkJson?.delta?.partial_json;
+            if (index >= 0 && runTools[index]) {
+              runTools[index]["function"]["arguments"] +=
+                chunkJson?.delta?.partial_json;
+            }
           }
           return chunkJson?.delta?.text;
         },
