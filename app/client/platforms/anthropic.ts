@@ -15,15 +15,25 @@ import { cloudflareAIGatewayUrl } from "@/app/utils/cloudflare";
 import { RequestPayload } from "./openai";
 import { fetch } from "@/app/utils/stream";
 
-export type MultiBlockContent = {
-  type: "image" | "text";
-  source?: {
-    type: string;
-    media_type: string;
-    data: string;
-  };
-  text?: string;
-};
+export type MultiBlockContent =
+  | {
+      type: "text";
+      text: string;
+    }
+  | {
+      type: "image";
+      source: {
+        type: string;
+        media_type: string;
+        data: string;
+      };
+    }
+  | { type: "tool_use"; id: string; name: string; input: object }
+  | {
+      type: "tool_result";
+      tool_use_id: string;
+      content: string | MultiBlockContent[];
+    };
 
 export type AnthropicMessage = {
   role: (typeof ClaudeMapper)[keyof typeof ClaudeMapper];
@@ -33,6 +43,7 @@ export type AnthropicMessage = {
 export interface AnthropicChatRequest {
   model: string; // The model that will complete your prompt.
   messages: AnthropicMessage[]; // The prompt that you want Claude to complete.
+  system?: string; // Optional system prompt passed as a top-level field.
   max_tokens: number; // The maximum number of tokens to generate before stopping.
   stop_sequences?: string[]; // Sequences that will cause the model to stop generating completion text.
   temperature?: number; // Amount of randomness injected into the response.
@@ -68,10 +79,8 @@ export type ChatStreamResponse = ChatResponse & {
 const ClaudeMapper = {
   assistant: "assistant",
   user: "user",
-  system: "user",
+  system: "system",
 } as const;
-
-const keys = ["claude-2, claude-instant-1"];
 
 export class ClaudeApi implements LLMApi {
   speech(options: SpeechOptions): Promise<ArrayBuffer> {
@@ -81,7 +90,7 @@ export class ClaudeApi implements LLMApi {
   extractMessage(res: any) {
     console.log("[Response] claude response: ", res);
 
-    return res?.content?.[0]?.text;
+    return res?.content?.map((b: any) => b.text ?? "").join("") ?? "";
   }
   async chat(options: ChatOptions): Promise<void> {
     const visionModel = isVisionModel(options.config.model);
@@ -99,20 +108,27 @@ export class ClaudeApi implements LLMApi {
     };
 
     // try get base64image from local cache image_url
-    const messages: ChatOptions["messages"] = [];
+    const allMessages: ChatOptions["messages"] = [];
     for (const v of options.messages) {
       const content = await preProcessImageContent(v.content);
-      messages.push({ role: v.role, content });
+      allMessages.push({ role: v.role, content });
     }
 
-    const keys = ["system", "user"];
+    // Extract system messages and pass them as the top-level `system` field
+    const systemPrompt = allMessages
+      .filter((m) => m.role === "system")
+      .map((m) => (typeof m.content === "string" ? m.content : getMessageTextContent(m)))
+      .join("\n")
+      .trim();
 
-    // roles must alternate between "user" and "assistant" in claude, so add a fake assistant message between two user messages
+    const messages = allMessages.filter((m) => m.role !== "system");
+
+    // roles must alternate between "user" and "assistant" in claude, so add a fake assistant message between two consecutive user messages
     for (let i = 0; i < messages.length - 1; i++) {
       const message = messages[i];
       const nextMessage = messages[i + 1];
 
-      if (keys.includes(message.role) && keys.includes(nextMessage.role)) {
+      if (message.role === "user" && nextMessage.role === "user") {
         messages[i] = [
           message,
           {
@@ -187,8 +203,8 @@ export class ClaudeApi implements LLMApi {
       max_tokens: modelConfig.max_tokens,
       temperature: modelConfig.temperature,
       top_p: modelConfig.top_p,
-      // top_k: modelConfig.top_k,
-      top_k: 5,
+      top_k: modelConfig.top_k,
+      ...(systemPrompt ? { system: systemPrompt } : {}),
     };
 
     const path = this.path(Anthropic.ChatPath);
@@ -210,7 +226,6 @@ export class ClaudeApi implements LLMApi {
           ...getHeaders(),
           "anthropic-version": accessStore.anthropicApiVersion,
         },
-        // @ts-ignore
         tools.map((tool) => ({
           name: tool?.function?.name,
           description: tool?.function?.description,
@@ -265,9 +280,10 @@ export class ClaudeApi implements LLMApi {
             chunkJson?.delta?.type == "input_json_delta" &&
             chunkJson?.delta?.partial_json
           ) {
-            // @ts-ignore
-            runTools[index]["function"]["arguments"] +=
-              chunkJson?.delta?.partial_json;
+            if (index >= 0 && runTools[index]) {
+              runTools[index]["function"]["arguments"] +=
+                chunkJson?.delta?.partial_json;
+            }
           }
           return chunkJson?.delta?.text;
         },
@@ -279,9 +295,7 @@ export class ClaudeApi implements LLMApi {
         ) => {
           // reset index value
           index = -1;
-          // @ts-ignore
           requestPayload?.messages?.splice(
-            // @ts-ignore
             requestPayload?.messages?.length,
             0,
             {
@@ -297,7 +311,6 @@ export class ClaudeApi implements LLMApi {
                 }),
               ),
             },
-            // @ts-ignore
             ...toolCallResult.map((result) => ({
               role: "user",
               content: [
@@ -327,7 +340,7 @@ export class ClaudeApi implements LLMApi {
 
       try {
         controller.signal.onabort = () =>
-          options.onFinish("", new Response(null, { status: 400 }));
+          options.onFinish("", new Response(null, { status: 499 }));
 
         const res = await fetch(path, payload);
         const resJson = await res.json();
